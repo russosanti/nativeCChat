@@ -1,0 +1,28 @@
+package parcialTPA2009_2;
+//Ejemplo con BorderLayout y FlowLayout (comparar ambos layouts)
+
+import java.awt.BorderLayout;
+//import java.awt.FlowLayout;
+import java.awt.Event;
+import java.awt.Button;
+import java.awt.Label;
+import java.applet.*;
+
+import java.sql.*;
+import java.util.*;
+
+public class BibliotecaGraficaApplet extends Applet {
+   private static final long serialVersionUID = 1L;
+   private Biblioteca bib;
+   private Button boton;
+   private Label etiqueta;
+
+   public void init() {
+      bib = cargarBiblioteca("sun.jdbc.odbc.JdbcOdbcDriver", "jdbc:odbc:biblioteca");
+      setSize(400, 500);
+      setName("Biblioteca gráfica Swing");
+      boton = new Button("Mostrar estado");
+      etiqueta = new Label("Casilleros ocupados");
+      setLayout(new BorderLayout());
+      add(boton, BorderLayout.LINE_START);
+      add(etiqueta, Bor

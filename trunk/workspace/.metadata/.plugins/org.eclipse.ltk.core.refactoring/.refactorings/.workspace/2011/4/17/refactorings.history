@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;Seminario de Operativos/abc_no.c&apos;" deleteContents="false" description="Delete resource &apos;Seminario de Operativos/abc_no.c&apos;" element1="/Seminario de Operativos/abc_no.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1303063922885"/>&#x0A;<refactoring comment="Delete resource &apos;Seminario de Operativos/abc_pipes.c&apos;" deleteContents="false" description="Delete resource &apos;Seminario de Operativos/abc_pipes.c&apos;" element1="/Seminario de Operativos/abc_pipes.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1303063932445"/>
+</session>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;Seminario de Operativos/Memoria Compartida/Memoria Compartida&apos;" deleteContents="false" description="Delete resource &apos;Seminario de Operativos/Memoria Compartida/Memoria Compartida&apos;" element1="/Seminario de Operativos/Memoria Compartida/Memoria Compartida" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1305982820017"/>
+</session>

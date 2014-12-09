@@ -1,0 +1,24 @@
+
+**** Build of configuration Debug for project Seminario de Operativos ****
+
+make all 
+Building file: ../Sockets/socket.c
+Invoking: GCC C Compiler
+gcc -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"Sockets/socket.d" -MT"Sockets/socket.d" -o"Sockets/socket.o" "../Sockets/socket.c"
+../Sockets/socket.c:8: warning: return type defaults to ‘int’
+../Sockets/socket.c: In function ‘main’:
+../Sockets/socket.c:15: warning: implicit declaration of function ‘inet_addr’
+../Sockets/socket.c:20: warning: pointer targets in passing argument 3 of ‘accept’ differ in signedness
+Finished building: ../Sockets/socket.c
+ 
+Building target: Seminario de Operativos
+Invoking: GCC C Linker
+gcc  -o"Seminario de Operativos"  ./abc.o ./abc_senales.o ./escritor.o ./fifoEscritor.o ./fifoLector.o ./fifos.o ./mkPipe.o ./pipesHijoPadre.o ./senales.o  ./Sockets/socket.o ./Sockets/socketCliente.o  ./Semaforos/ejercicios_sem.o ./Semaforos/procA_sem.o ./Semaforos/semaforos.o  ./Memoria\ Compartida/Mem_Compartida.o ./Memoria\ Compartida/Productor.o  ./Cola\ de\ Mensajes/Cola_Mensajes.o ./Cola\ de\ Mensajes/chat_a.o ./Cola\ de\ Mensajes/escritor.o   
+/usr/include/sys/socket.h:214: note: expected ‘socklen_t * __restrict__’ but argument is of type ‘int *’
+Finished building target: Seminario de Operativos
+ 
+../Sockets/socket.c:25: warning: implicit declaration of function ‘read’
+../Sockets/socket.c:28: warning: implicit declaration of function ‘write’
+../Sockets/socket.c:29: warning: implicit declaration of function ‘close’
+./escritor.o: In function `main1':
+/home/santy/Documents/workspace/Seminario de Operativos/Debug/../escritor.c:45: warning: the `gets' function is dangerous and should not be used.

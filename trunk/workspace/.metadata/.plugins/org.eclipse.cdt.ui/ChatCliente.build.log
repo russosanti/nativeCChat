@@ -1,0 +1,33 @@
+
+**** Build of configuration Debug for project ChatCliente ****
+
+make all 
+Building file: ../ChatCliente.c
+Invoking: GCC C Compiler
+gcc `pkg-config --cflags --libs gtk+-2.0` -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"ChatCliente.d" -MT"ChatCliente.d" -o"ChatCliente.o" "../ChatCliente.c"
+../ChatCliente.c: In function ‘get_ip’:
+../ChatCliente.c:101: warning: passing argument 3 of ‘pthread_create’ from incompatible pointer type
+/usr/include/pthread.h:227: note: expected ‘void * (*)(void *)’ but argument is of type ‘void (*)()’
+../ChatCliente.c: In function ‘check_ip’:
+../ChatCliente.c:130: warning: assignment makes pointer from integer without a cast
+../ChatCliente.c:130: warning: suggest parentheses around assignment used as truth value
+../ChatCliente.c: In function ‘client’:
+../ChatCliente.c:165: warning: passing argument 2 of ‘connect’ from incompatible pointer type
+Finished building: ../ChatCliente.c
+ 
+Building target: ChatCliente
+Invoking: GCC C Linker
+/usr/include/sys/socket.h:129: note: expected ‘const struct sockaddr *’ but argument is of type ‘struct sockaddr_in *’
+gcc `pkg-config --cflags --libs gtk+-2.0`  -o"ChatCliente"  ./ChatCliente.o   
+../ChatCliente.c: In function ‘disponibilidad’:
+../ChatCliente.c:180: warning: implicit declaration of function ‘read’
+../ChatCliente.c: In function ‘usrn_valido’:
+../ChatCliente.c:233: warning: implicit declaration of function ‘write’
+../ChatCliente.c: In function ‘pantallaCliente’:
+../ChatCliente.c:384: warning: ‘return’ with a value, in function returning void
+../ChatCliente.c:395: warning: ‘return’ with a value, in function returning void
+../ChatCliente.c:284: warning: unused variable ‘mensaje’
+../ChatCliente.c: In function ‘esperar_usuario’:
+../ChatCliente.c:403: warning: implicit declaration of function ‘sleep’
+Finished building target: ChatCliente
+ 

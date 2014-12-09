@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Seminario de Operativos/Cola de Mensajes/Cola_Mensajes&apos; to &apos;Cola_Mensajes.c&apos;" description="Rename resource &apos;Cola_Mensajes&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Cola de Mensajes/Cola_Mensajes" name="Cola_Mensajes.c" stamp="1306587796699" updateReferences="true"/>
+</session>

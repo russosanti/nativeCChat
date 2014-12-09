@@ -1,0 +1,631 @@
+/*
+ * ChatCliente.c
+ *
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <pthread.h>
+#include <time.h>
+#include "gtk/gtk.h"
+
+typedef struct
+{
+        GtkWidget *view;
+        GtkWidget *resp;
+    	int sock;
+    	char username[];
+} MyWidgets;
+
+
+#define TIME_24   1
+#define TIME_12   0
+
+
+#define PUERTO 4000
+#define USRN 64
+#define MAXIP 32
+#define MAXBUFF 1024
+
+
+void thread_fun();
+void error(char *msg);
+void Enter();
+void get_ip(char ip[]);
+int check_ip(char ip[]);
+int client(char adress[],int port);
+void disponibilidad(int socket);
+void chat(int socket);
+void ingresar_username(int socket,char buffer[]);
+int usrn_valido(int socket,char buffer[]);
+void Read(int sock,char *buffer);
+void Write(int sock, char *buffer);
+void help();
+void pantallaCliente (int sock,char username[]);
+static gboolean delete_event( GtkWidget *widget,
+                              GdkEvent  *event,
+                              gpointer   data );
+void al_apretar_boton (GtkWidget *button, gpointer user_data);
+void clrbuff ( void );
+int recvtimeout(int s, char *buf, int len, int timeout);
+void get_time_string(int mode24, char time_str[]);
+static gpointer esperar_usuario( gpointer user_data );
+
+
+int main(int   argc,
+        char *argv[])
+{
+    char ip[MAXIP];
+    get_ip(ip);
+    if(strcasecmp(ip,"EXIT")!=0){
+        client(ip,PUERTO);//client("localhost",PUERTO);
+        return(1);
+    }else{
+        return(0);
+    }
+}
+
+
+void thread_fun() //funcion para el pthread_create
+{
+}
+
+
+// Trata los errores de los sockets
+void error(char *msg)
+{
+    perror(msg);   //errores del sistema
+    exit(0);
+}
+//----------------------------------------
+
+//Pide el ingreso de un enter
+void Enter()
+{
+    char enter[256];
+    printf("Presione enter para continuar");
+    fgets(enter,256,stdin);
+    system("clear");
+}
+//-----------------------------------------------
+
+//Pide el ingreso de la ip o localhost
+void get_ip(char ip[])
+{
+    pthread_t thread_ip;   //thread para conseguir la ip
+    pthread_create( &thread_ip, NULL,thread_fun, NULL );
+    printf("Ingrese la ip (Recuerde 'xxx.xxx.xxx.xxx' o localhost):\n");
+    fgets(ip,36,stdin);
+    fflush(stdin);  // x lo tanto tengo que pararme en el ultimo y borrarlo
+    ip[strlen(ip)-1]='\0';
+    while((strcasecmp(ip,"EXIT")!=0) && check_ip(ip)){
+        printf("Ingrese la ip (Recuerde 'xxx.xxx.xxx.xxx' o localhost):\n");
+        fgets(ip,36,stdin);
+        fflush(stdin);  // x lo tanto tengo que pararme en el ultimo y borrarlo
+        ip[strlen(ip)-1]='\0';
+    }
+    system("clear");
+    pthread_join(thread_ip,NULL);
+}
+//---------------------------------------------------------------
+
+//Valida la ip ingresada
+int check_ip(char ip[])
+{
+    char *auxip=(char*)malloc(sizeof(ip));
+    char *ptr;//=(char*)malloc(sizeof(ip));
+    if(strcasecmp(ip,"localhost")==0){
+        return(0);
+    }else{
+        if(strlen(ip)>15){   //chequa la longitud de la IP
+            printf("Longitud de la ip superada\nDebe ser menor a 15\n");
+            return(1);
+        }else{
+            strcpy(auxip,ip);
+            if(ptr=strchr(auxip,'.')==NULL){    //se fija que no falte la puntuacion
+                printf("Falta puntuacion en la ip\n");
+                return(1);
+            }else{
+                return(0);
+                //podria seguir analizando pero si es invalida me tira invalid connection en el error
+            }
+        }
+    }
+}
+//------------------------------------------------------------------
+
+//Crea la conexion con el servidor
+int client(char adress[],int port)
+{
+    int sockfd;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    if(port<=2000){   //Los puertos de numero bajo los usa el SO
+       fprintf(stderr,"Numero de puerto (%d) debe estar entre 2000 y 65000\n", port);
+       exit(0);
+    }
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)  //en el caso que no se puede inicializar el socket
+        error("ERROR. Por favor reinicie la aplicacion");
+    server = gethostbyname(adress);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, IP \n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));  //pone la cadena en /0
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr,(char *)&serv_addr.sin_addr.s_addr,server->h_length);
+    serv_addr.sin_port = htons(port);
+    if (connect(sockfd,&serv_addr,sizeof(serv_addr)) < 0)  //si el servidor no esta disponible
+        error("ERROR conectandose al servidor, intente nuevamente mas tarde");
+
+    disponibilidad(sockfd);   //chequea si pude conectarme exitosamente y el servidor tiene lugar
+    chat(sockfd);  //funcion principal del juego
+    return 0;
+}
+//-------------------------------------------------------------------------------------
+
+//Chequea si el servidor puede aceptar mas procesos o no
+void disponibilidad(int socket)
+{
+    int err;
+    char buffer[MAXBUFF];
+    bzero(buffer,MAXBUFF);
+    err = read(socket,buffer,MAXBUFF);      //leo el mensaje del servidor
+    if (err < 0)
+        error("ERROR comunicandose con el servidor, Intente nuevamente mas tarde");
+
+    if(strcasecmp(buffer,"SERVIDOR OCUPADO")==0){  //si el mensaje es de ocupado salgo
+        printf("Servidor Ocupado.\nIntente Nuevamente mas tarde\n\n");
+        Enter();
+        exit(0);
+    }else{
+        if(strcasecmp(buffer,"OK")==0){  //si me da permiso sigo
+            printf("Conexion con el Servidor Establecida\n\n");
+            Enter();
+        }else{  //si no es ninguna de las 2 hay algo mal en el msj
+            printf("Error conectandose con el servidor. Respuesta inconsistente #1");
+        }
+    }
+}
+
+//Crea un bucle para seguir chateando mientras no sea un EXIT
+void chat(int socket)
+{
+    char buffer[MAXBUFF];
+    char username[USRN];
+    ingresar_username(socket,username);   //pide el comando
+    if(strcasecmp(buffer,"EXIT")!=0){
+
+        printf("Bienvenido al SanChat:\n");
+        Enter();
+        pantallaCliente(socket,username);
+    }
+    printf("GRACIAS POR HABER JUGADO\n");
+}
+//------------------------------------------------
+
+//Pide el ingreso de un comando
+void ingresar_username(int socket,char buffer[])
+{
+    printf("Ingrese su nombre de usuario:\n");  //pide el ingreo del comando
+    fgets(buffer,MAXBUFF-1,stdin);
+    fflush(stdin);  // x lo tanto tengo que pararme en el ultimo y borrarlo
+    buffer[strlen(buffer)-1]='\0';
+    while(!usrn_valido(socket,buffer)){
+        printf("El nombre de usuario elegido ya esta en uso, por favor elija otro nombre de usuario:\n");  //pide el ingreo del comando
+        fgets(buffer,MAXBUFF-1,stdin);
+        fflush(stdin);  // x lo tanto tengo que pararme en el ultimo y borrarlo
+        buffer[strlen(buffer)-1]='\0';
+    }
+    system("clear");
+}
+
+//Valida el ingreso de un comando valido
+int usrn_valido(int socket,char buffer[])
+{
+    char buff[MAXBUFF];
+    int n = write(socket,buffer,USRN);
+    if (n<0) error("ERROR writing - Conexion con el servidor perdida");
+    Read(socket,buff);
+    if((strcasecmp(buff,"VALID")==0)||(strcasecmp(buff,"EXIT")==0)){
+        return(1);
+    }else{
+        return(0);
+    }
+}
+
+
+void Read(int sock,char *buffer){
+	bzero(buffer,MAXBUFF);
+	int n = read(sock,buffer,MAXBUFF);
+	if (n<0) error("ERROR reading - Conexion con el servidor perdida");
+}
+
+void Write(int sock, char *buffer){
+	 int n = write(sock,buffer,MAXBUFF);
+	 if (n<0) error("ERROR writing - Conexion con el servidor perdida");
+}
+
+//Muestra la ayuda de los comandos
+void help()
+{
+    system("clear");
+    printf("Comandos validos:\n\n");
+    printf("Caracteres: Cualquier cosa hasta 2064 caracteresw\n");
+    printf("Help: Muestra la ayuda\n");
+    printf("Close: Sale del chat\n");
+}
+
+
+//Pantalla principal del chat
+void pantallaCliente (int sock,char username[]){
+
+	GtkWidget *window;
+	GtkWidget *box1;
+	GtkWidget *separator;
+	GtkWidget *label;
+	GtkWidget *quitbox;
+	GtkWidget *scrolled_window;
+	GtkTextBuffer *buffer1;
+	GtkWidget *envio;
+	GtkTextBuffer *buffer_resp;
+	MyWidgets  datos_conexion;
+
+    GThread   *thread;
+    GError    *error = NULL;
+
+	char time_str[12];
+	char mensaje[MAXBUFF];
+//	gchar *text2;
+//	text2 = (gchar*)malloc (sizeof (mensaje)* sizeof (gchar));
+
+	get_time_string(TIME_24, time_str);
+
+	// Copiar los datos de ingreso a datos_conexion
+	datos_conexion.sock = sock;
+	strcpy(datos_conexion.username,username);
+
+	gtk_init (0, NULL);
+
+	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+
+	g_signal_connect (window, "delete-event",
+			  G_CALLBACK (delete_event), &datos_conexion);
+
+	gtk_window_set_title (GTK_WINDOW(window), "Chat con Servidor");
+	gtk_container_set_border_width (GTK_CONTAINER (window), 10);
+	gtk_widget_set_size_request (GTK_WIDGET (window), 350, 230);
+	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+
+	box1 = gtk_vbox_new (FALSE, 2);
+
+	label = gtk_label_new ("Mensajería Instantánea");
+
+	gtk_misc_set_alignment (GTK_MISC (label), 0, 0);
+
+	gtk_box_pack_start (GTK_BOX (box1), label, FALSE, FALSE, 0);
+
+	gtk_widget_show (label);
+
+	// Crea la ventana con las respuestas
+	datos_conexion.resp = gtk_text_view_new ();
+	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (datos_conexion.resp), GTK_WRAP_WORD_CHAR);
+	buffer_resp = gtk_text_view_get_buffer (GTK_TEXT_VIEW (datos_conexion.resp));
+
+	scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+			   	           GTK_POLICY_AUTOMATIC,
+					   GTK_POLICY_AUTOMATIC);
+
+	gtk_container_add (GTK_CONTAINER (scrolled_window), datos_conexion.resp);
+	gtk_text_buffer_set_text (buffer_resp, "", -1);
+	gtk_text_view_set_editable(GTK_TEXT_VIEW (datos_conexion.resp), FALSE);
+	gtk_box_pack_start (GTK_BOX (box1), scrolled_window, TRUE, TRUE, 0);
+	gtk_widget_show (datos_conexion.resp);
+	gtk_widget_show (scrolled_window);
+
+	separator = gtk_hseparator_new ();
+	gtk_box_pack_start (GTK_BOX (box1), separator, TRUE, TRUE, 5);
+	gtk_widget_show (separator);
+
+	gtk_text_buffer_create_tag(buffer_resp, "lmarg",
+	      "left_margin", 5, NULL);
+	gtk_text_buffer_create_tag(buffer_resp, "blue_fg",
+	      "foreground", "blue", NULL);
+	gtk_text_buffer_create_tag(buffer_resp, "black_fg",
+	      "foreground", "black", NULL);
+	gtk_text_buffer_create_tag(buffer_resp, "red_fg",
+	      "foreground", "red", NULL);
+
+	// Crea la vista de la ventana para ingresar los datos
+	datos_conexion.view = gtk_text_view_new ();
+	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (datos_conexion.view), GTK_WRAP_WORD_CHAR);
+	buffer1 = gtk_text_view_get_buffer (GTK_TEXT_VIEW (datos_conexion.view));
+
+	scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+			   	           GTK_POLICY_AUTOMATIC,
+					   GTK_POLICY_AUTOMATIC);
+
+	gtk_container_add (GTK_CONTAINER (scrolled_window), datos_conexion.view);
+	gtk_text_buffer_set_text (buffer1, "Texto inicial ", -1);
+	gtk_box_pack_start (GTK_BOX (box1), scrolled_window, TRUE, TRUE, 0);
+	gtk_widget_show (datos_conexion.view);
+	gtk_widget_show (scrolled_window);
+
+
+	separator = gtk_hseparator_new ();
+	gtk_box_pack_start (GTK_BOX (box1), separator, TRUE, TRUE, 5);
+	gtk_widget_show (separator);
+
+	quitbox = gtk_hbox_new (TRUE, 1);
+
+
+	envio = gtk_button_new_with_label ("Enviar");
+	gtk_box_pack_start (GTK_BOX (quitbox), envio, TRUE, FALSE, 0);
+	g_signal_connect (G_OBJECT (envio), "clicked",
+                     G_CALLBACK (al_apretar_boton),
+                     &datos_conexion);
+
+	gtk_box_pack_start (GTK_BOX (box1), quitbox, FALSE, FALSE, 0);
+
+	gtk_container_add (GTK_CONTAINER (window), box1);
+
+    /* Crear nuevo thread para ver si llega un nuevo mensaje del Servidor */
+    thread = g_thread_create( esperar_usuario,&datos_conexion,
+                              FALSE, &error );
+    if( ! thread )
+    {
+        g_print( "Error: %s\n", error->message );
+        return( -1 );
+    }
+
+	gtk_widget_show (envio);
+	gtk_widget_show (quitbox);
+
+	gtk_widget_show (box1);
+	gtk_widget_show (window);
+
+	gtk_main ();
+
+	return 0;
+}
+
+/* Lectura de una respuesta del Servidor */
+static gpointer esperar_usuario( gpointer user_data )
+{
+    while( TRUE )
+    {
+        sleep( 3 );
+
+        gdk_threads_enter();
+
+    	char mensaje[MAXBUFF];
+    	MyWidgets               *widgetsydatos;
+    	GtkTextBuffer           *buffer_resp;
+    	widgetsydatos = (MyWidgets *)user_data;
+    	GtkTextMark *end_mark;
+    	char time_str[12];
+    	GtkTextIter iter;
+
+    	gchar *text2;
+    	int n;
+    	text2 = (gchar*)malloc (sizeof (mensaje)* sizeof (gchar));
+
+    	buffer_resp = gtk_text_view_get_buffer (GTK_TEXT_VIEW (widgetsydatos->resp));
+
+    	// Recibe lo que manda el servidor y si no hay nada se va por timeout
+    	n = recvtimeout(widgetsydatos->sock, mensaje, sizeof mensaje, 5); // 5 second timeout
+    	if (n == -1) {
+    		perror("recvtimeout");
+    	}
+    	else if (n == -2) {
+    		// timeout
+    	} else {
+    	  if(strcasecmp(mensaje,"CLOSE")==0){
+    		g_print ("Sesión cerrada por el Servidor \n");
+    		exit(0);
+    	  }else{
+    		get_time_string(TIME_24, time_str);
+    		strcpy(text2,mensaje);
+
+    		text2 = g_strconcat("Servidor"," [",time_str,"]:  \n", text2, " \n  ",NULL);
+
+    		gtk_text_buffer_get_end_iter(buffer_resp, &iter);
+     		gtk_text_buffer_insert(buffer_resp,&iter, text2, -1);
+    		// Nuevo cierre
+
+ //   		gtk_text_buffer_insert_at_cursor(buffer_resp, "\n", -1);   // pasa nueva linea
+    		// Nuevo 2
+ //   		g_free(text2);
+    		// Nuevo 2 cierre
+
+    		/* get end iter again */
+    		gtk_text_buffer_get_end_iter (buffer_resp, &iter);
+    		// Sube el scroll para mostrar el final siempre
+    		end_mark = gtk_text_buffer_get_mark(buffer_resp, "insert");
+    		/* move mark and selection bound to the end */
+    		gtk_text_buffer_place_cursor(buffer_resp, &iter);
+    		gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(widgetsydatos->resp), end_mark,
+    		  0, TRUE, 0.0, 1.0);
+
+
+//    		gtk_text_buffer_get_end_iter(buffer_resp, &iter);
+//    		gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &iter,
+//    				"Servidor", -1, "blue_fg", NULL,  NULL);
+//    		gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &iter,
+//    				" [", -1, "blue_fg", NULL,  NULL);
+//    		gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &iter,
+//    				time_str, -1, "blue_fg", NULL,  NULL);
+//    		gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &iter,
+//    				"]: \n  ", -1, "blue_fg", NULL,  NULL);
+//    		gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &iter,
+//    				text2, -1, "black_fg", "lmarg",  NULL);
+//    		// Nuevo
+//    		gtk_text_buffer_get_end_iter(buffer_resp, &iter);
+//    		gtk_text_buffer_insert(buffer_resp,&iter, "\n", -1);
+//    		// Nuevo cierre
+//
+// //   		gtk_text_buffer_insert_at_cursor(buffer_resp, "\n", -1);   // pasa nueva linea
+//    		// Nuevo 2
+// //   		g_free(text2);
+//    		// Nuevo 2 cierre
+//
+//    		/* get end iter again */
+//    		gtk_text_buffer_get_end_iter (buffer_resp, &iter);
+//    		// Sube el scroll para mostrar el final siempre
+//    		end_mark = gtk_text_buffer_get_mark(buffer_resp, "insert");
+//    		/* move mark and selection bound to the end */
+//    		gtk_text_buffer_place_cursor(buffer_resp, &iter);
+//    		gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(widgetsydatos->resp), end_mark,
+//    		  0, TRUE, 0.0, 1.0);
+    	  }
+    	}
+
+    	gdk_threads_leave();
+    }
+
+    return( NULL );
+}
+
+static gboolean delete_event( GtkWidget *widget,
+                              GdkEvent  *event,
+                              gpointer   data )
+{
+	MyWidgets               *widgetsydatos;
+	widgetsydatos = (MyWidgets *)data;
+	// Envia el cierre servidor //
+    g_print ("%s: CERRAR  \n", widgetsydatos->username);
+    Write(widgetsydatos->sock,"CLOSE");
+    exit(0);
+    gtk_main_quit ();
+    return FALSE;
+}
+
+void
+al_apretar_boton (GtkWidget *button, gpointer user_data)
+{
+	char mensaje[MAXBUFF];
+	MyWidgets               *widgetsydatos;
+	GtkTextBuffer           *buffer;
+	GtkTextBuffer           *buffer_resp;
+	widgetsydatos = (MyWidgets *)user_data;
+	GtkTextMark *end_mark;
+	char time_str[12];
+
+	GtkTextIter start;
+	GtkTextIter end;
+
+	get_time_string(TIME_24, time_str);
+	gchar *text;
+	gchar *text2;
+
+	text = (gchar*)malloc (sizeof (mensaje)* sizeof (gchar));
+	text2 = (gchar*)malloc (sizeof (mensaje)* sizeof (gchar));
+	buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (widgetsydatos->view));
+
+	/* Obtain iters for the start and end of points of the buffer */
+	gtk_text_buffer_get_start_iter (buffer, &start);
+	gtk_text_buffer_get_end_iter (buffer, &end);
+
+	/* Get the entire buffer text. */
+	text = gtk_text_buffer_get_text (buffer, &start, &end, FALSE);
+
+	text2 = g_strconcat(widgetsydatos->username," [",time_str,"]: \n  ",NULL);
+
+	buffer_resp = gtk_text_view_get_buffer (GTK_TEXT_VIEW (widgetsydatos->resp));
+
+	gtk_text_buffer_get_end_iter(buffer_resp, &end);
+	gtk_text_buffer_insert(buffer_resp,&end, text2, -1);
+
+//	gtk_text_buffer_get_end_iter (buffer_resp, &end);
+//	gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &end,
+//			text2, -1, "red_fg", NULL,  NULL);
+	// Nuevo
+	gtk_text_buffer_get_end_iter(buffer_resp, &end);
+	// Nuevo cierre
+	text2 = g_strconcat(text,"\n",NULL);
+	gtk_text_buffer_insert(buffer_resp,&end, text2, -1);
+//	gtk_text_buffer_insert_with_tags_by_name(buffer_resp, &end,
+//			text2, -1, "black_fg", "lmarg",  NULL);
+	// Nuevo 2
+//	g_free(text);
+//	g_free(text2);
+	// Nuevo 2 cierre
+
+	strcpy(mensaje, text);
+	// Envia la respuesta al cliente //
+	if(strcasecmp(mensaje,"CLOSE")==0){
+	  g_print ("Server: CERRAR  \n");
+	  Write(widgetsydatos->sock,mensaje);
+	  exit(0);
+	}else{
+	  Write(widgetsydatos->sock,mensaje);
+	}
+
+	// Sube el scroll para mostrar el final siempre
+	end_mark = gtk_text_buffer_get_mark(buffer_resp, "insert");
+	gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(widgetsydatos->resp), end_mark,
+	0, TRUE, 0.0, 1.0);
+
+	/* limpia el bufer de texto ingresado para comenzar a ingresar un nuevo mensaje.   */
+	gtk_text_buffer_set_text (buffer, "", -1);
+}
+
+
+void clrbuff ( void )
+{
+  int ch;
+
+  do
+    ch = getchar();
+  while ( ch != EOF && ch != '\n' );
+
+  clearerr ( stdin );
+}
+
+int recvtimeout(int s, char *buf, int len, int timeout)
+{
+	fd_set fds;
+	int n;
+	struct timeval tv;
+	FD_ZERO(&fds);
+	FD_SET(s, &fds);
+	tv.tv_sec = timeout;
+	tv.tv_usec = 0;
+	n = select(s+1, &fds, NULL, NULL, &tv);
+	if (n == 0) return -2; // timeout!
+	if (n == -1) return -1; // error
+	return recv(s, buf, len, 0);
+}
+
+
+void get_time_string(int mode24, char time_str[])
+{
+  struct tm *now = NULL;
+  int hour = 0;
+  time_t time_value = 0;
+
+  time_value = time(NULL);
+  now = localtime(&time_value);
+  hour = now->tm_hour;
+  if(!mode24 && hour>12)
+    hour -= 12;
+
+  sprintf (time_str,"%2d:%02d:%02d",hour,now->tm_min,now->tm_sec);
+
+  if(!mode24){
+    if(now->tm_hour>24){
+       printf("PM\n");
+    }else{
+       printf("AM\n");
+    }
+  }
+}

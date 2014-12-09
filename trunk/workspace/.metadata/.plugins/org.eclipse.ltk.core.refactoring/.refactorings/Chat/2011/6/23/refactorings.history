@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Chat/paneles2.c&apos; to &apos;window.c&apos;" description="Rename resource &apos;paneles2.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="paneles2.c" name="window.c" stamp="1306899679772" updateReferences="true"/>
+</session>

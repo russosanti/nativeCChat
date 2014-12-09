@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;Seminario de Operativos/senales.c&apos; to &apos;senales_sleep.c&apos;" description="Rename resource &apos;senales.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="senales.c" name="senales_sleep.c" stamp="1304774061224" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;Seminario de Operativos/senales_sleep.c&apos; to &apos;senales.c&apos;" description="Rename resource &apos;senales_sleep.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="senales_sleep.c" name="senales.c" stamp="1304778979491" updateReferences="true"/>
+</session>
